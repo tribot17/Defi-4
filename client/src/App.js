@@ -59,6 +59,14 @@ const App = () => {
     setBalanceOf(await instance.methods.balanceOf(accounts[0]).call());
   };
 
+  const handleChainLinkValue = async () => {
+    console.log(
+      await instance.methods
+        .getTokenEthPrice("0xa36085F69e2889c224210F603D836748e7dC0088")
+        .call()
+    );
+  };
+
   return (
     <div className="homePage">
       <h1>Staking Project</h1>
@@ -68,6 +76,11 @@ const App = () => {
       <div>
         <h3>Nombre de tokens stakés : {balanceOf}</h3>
       </div>
+
+      <div>
+        Valeur de <button onClick={handleChainLinkValue}>Clicl</button>
+      </div>
+
       <div>
         <p>Stacker vos tokens</p>
         <input type="number" name="valueDeposit" onChange={handleInputChange} />
