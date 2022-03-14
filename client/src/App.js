@@ -26,7 +26,7 @@ const App = () => {
       deployedNetwork && deployedNetwork.address
     );
 
-    setBalanceOf(await instance.methods.balanceOf(accounts[0]).call());
+    setBalanceOf(await instance.methods.balanceOf(accounts[0],"0xa36085F69e2889c224210F603D836748e7dC0088").call());
     setBalancOfContract(await instance.methods.getBalance().call());
 
     setInstance(instance);
@@ -49,7 +49,7 @@ const App = () => {
       from: accounts[0],
       value: web3.utils.toWei(inputState.valueDeposit, "ether"),
     });
-    setBalanceOf(await instance.methods.balanceOf(accounts[0]).call());
+    setBalanceOf(await instance.methods.balanceOf(accounts[0],"0xa36085F69e2889c224210F603D836748e7dC0088").call());
   };
 
   const withdraw = async () => {
@@ -60,11 +60,20 @@ const App = () => {
   };
 
   const handleChainLinkValue = async () => {
-    console.log(
-      await instance.methods
-        .getTokenEthPrice("0xa36085F69e2889c224210F603D836748e7dC0088")
-        .call()
-    );
+    console.log(instance.methods);
+
+    let data = await instance.methods
+      .getTokenEthPrice("0x64A436ae831C1672AE81F674CAb8B6775df3475C")
+      .call()
+      .then((res) => {
+        console.log(res);
+      });
+  };
+
+  const depositERC20 = async () => {
+    await instance.methods
+      .stakeERC20(2, "0xa36085F69e2889c224210F603D836748e7dC0088")
+      .send({ from: accounts[0] });
   };
 
   return (
@@ -85,6 +94,12 @@ const App = () => {
         <p>Stacker vos tokens</p>
         <input type="number" name="valueDeposit" onChange={handleInputChange} />
         <button onClick={deposit}>Stacker</button>
+      </div>
+
+      <div>
+        <p>Stacker vos tokens</p>
+        <input type="number" name="valueDeposit" onChange={handleInputChange} />
+        <button onClick={depositERC20}>Stacker</button>
       </div>
       <div>
         <p>Réclamer vos tokens</p>

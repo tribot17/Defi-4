@@ -7,12 +7,12 @@ import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./Rec.sol";
 
-contract stakingCore {
+contract stakingCore is ChainlinkClient {
     using SafeMath for uint256;
     IERC20 public recToken;
     Rec rec;
     // AggregatorV3Interface internal priceFeed;
-    mapping(address => uint256) private balance;
+    mapping(address => mapping(address => uint256)) private balance;
     mapping(address => uint256) private depositTime;
     mapping(address => uint256) private lastRewardTime;
     mapping(address => uint256) private rewardValue;
@@ -27,23 +27,23 @@ contract stakingCore {
         // );
     }
 
-    receive() external payable {
-        balance[msg.sender] += msg.value;
-        depositTime[msg.sender] = block.timestamp;
-        emit onDeposit(msg.sender, msg.value);
-    }
+    // receive() external payable {
+    //     balance[msg.sender] += msg.value;
+    //     depositTime[msg.sender] = block.timestamp;
+    //     emit onDeposit(msg.sender, msg.value);
+    // }
 
     function stakeERC20(uint256 _amount, address _tokenAddress) public {
         IERC20(_tokenAddress).transferFrom(msg.sender, address(this), _amount);
-        balance[msg.sender] += _amount;
+        balance[msg.sender][_tokenAddress] += _amount;
     }
 
-    function withdrawMoney(uint256 value) public {
-        require(value <= balance[msg.sender], "You don't enougth money");
-        address payable to = payable(msg.sender);
-        balance[msg.sender] -= value;
-        to.transfer(value);
-    }
+    // function withdrawMoney(uint256 value) public {
+    //     require(value <= balance[msg.sender], "You don't enougth money");
+    //     address payable to = payable(msg.sender);
+    //     balance[msg.sender] -= value;
+    //     to.transfer(value);
+    // }
 
     function reward(address _address) private {
         require(
@@ -54,12 +54,24 @@ contract stakingCore {
         lastRewardTime[_address] = block.timestamp;
     }
 
-    function balanceOf(address _address) public view returns (uint256) {
-        return balance[_address];
+    function balanceOf(address _address, address _token)
+        public
+        view
+        returns (uint256)
+    {
+        return balance[_address][_token];
     }
 
     function getBalance() public view returns (uint256) {
         return address(this).balance;
+    }
+
+    function getUserStakingBalanceEthValue(address user, address token)
+        public
+        view
+        returns (uint256)
+    {
+        return (balance[token][user] * getTokenEthPrice(token)) / (10**18);
     }
 
     function getTokenEthPrice(address token) public view returns (uint256) {
