@@ -1,6 +1,7 @@
 import React, { Component, useEffect, useState } from "react";
 import getWeb3 from "./getWeb3";
 import StackingCore from "./contracts/stakingCore.json";
+import Owner from "./contracts/Ower.json";
 
 const App = () => {
   const [web3, setWeb3] = useState();
@@ -11,6 +12,7 @@ const App = () => {
   const [balanceOf, setBalanceOf] = useState(0);
   const [balancOfContract, setBalancOfContract] = useState(0);
   const [inputState, setInputState] = useState({});
+  const [instanceOwner, setInstanceOwner] = useState();
 
   useEffect(() => {
     loadData();
@@ -21,18 +23,29 @@ const App = () => {
     const accounts = await web3.eth.getAccounts();
     const networkId = await web3.eth.net.getId();
     const deployedNetwork = StackingCore.networks[networkId];
+    const deployedNetwork2 = Owner.networks[networkId];
+
     const instance = new web3.eth.Contract(
       StackingCore.abi,
       deployedNetwork && deployedNetwork.address
     );
-
-    setBalanceOf(await instance.methods.balanceOf(accounts[0],"0xa36085F69e2889c224210F603D836748e7dC0088").call());
-    setBalancOfContract(await instance.methods.getBalance().call());
+    const instanceOwner = new web3.eth.Contract(
+      Owner.abi,
+      deployedNetwork2 && deployedNetwork2.address
+    );
+    console.log(instanceOwner.methods);
+    await instanceOwner.methods
+      .approuve(
+        "0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa",
+        web3.utils.toWei(1000, "wei")
+      )
+      .send({ from: accounts[0] });
 
     setInstance(instance);
     setWeb3(web3);
     setAccounts(accounts);
     setNetworkId(networkId);
+    setInstanceOwner(instanceOwner);
   };
 
   const handleInputChange = (e) => {
@@ -49,7 +62,11 @@ const App = () => {
       from: accounts[0],
       value: web3.utils.toWei(inputState.valueDeposit, "ether"),
     });
-    setBalanceOf(await instance.methods.balanceOf(accounts[0],"0xa36085F69e2889c224210F603D836748e7dC0088").call());
+    setBalanceOf(
+      await instance.methods
+        .balanceOf(accounts[0], "0xa36085F69e2889c224210F603D836748e7dC0088")
+        .call()
+    );
   };
 
   const withdraw = async () => {
@@ -71,32 +88,32 @@ const App = () => {
   };
 
   const depositERC20 = async () => {
-    await instance.methods
-      .stakeERC20(2, "0xa36085F69e2889c224210F603D836748e7dC0088")
+    await instanceOwner.methods
+      .transfer("0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa", 1000)
       .send({ from: accounts[0] });
   };
 
   return (
     <div className="homePage">
       <h1>Staking Project</h1>
-      <div>
+      {/* <div>
         <h2>Total stacker sur le contract : {balancOfContract}</h2>
       </div>
       <div>
         <h3>Nombre de tokens stakés : {balanceOf}</h3>
-      </div>
+      </div> */}
 
-      <div>
+      {/* <div>
         Valeur de <button onClick={handleChainLinkValue}>Clicl</button>
-      </div>
+      </div> */}
 
-      <div>
+      {/* <div>
         <p>Stacker vos tokens</p>
         <input type="number" name="valueDeposit" onChange={handleInputChange} />
         <button onClick={deposit}>Stacker</button>
-      </div>
+      </div> */}
 
-      <div>
+      <div className="stakeContainer">
         <p>Stacker vos tokens</p>
         <input type="number" name="valueDeposit" onChange={handleInputChange} />
         <button onClick={depositERC20}>Stacker</button>
@@ -110,6 +127,8 @@ const App = () => {
         />
         <button onClick={withdraw}>Retirer</button>
       </div>
+
+      <button onClick={deposit}>Deposit</button>
     </div>
   );
 };
