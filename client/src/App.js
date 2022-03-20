@@ -1,7 +1,9 @@
 import React, { Component, useEffect, useState } from "react";
 import getWeb3 from "./getWeb3";
-import StackingCore from "./contracts/stakingCore.json";
+// import StackingCore from "./contracts/stakingCore.json";
+import Token from "./contracts/Token.json";
 import Owner from "./contracts/Ower.json";
+import ERC20 from "./contracts/ERC20.json";
 
 const App = () => {
   const [web3, setWeb3] = useState();
@@ -13,6 +15,8 @@ const App = () => {
   const [balancOfContract, setBalancOfContract] = useState(0);
   const [inputState, setInputState] = useState({});
   const [instanceOwner, setInstanceOwner] = useState();
+  const [ERC20Token, setERC20] = useState();
+  const [TokenName ,setTokenName] = useState();
 
   useEffect(() => {
     loadData();
@@ -22,25 +26,24 @@ const App = () => {
     const web3 = await getWeb3();
     const accounts = await web3.eth.getAccounts();
     const networkId = await web3.eth.net.getId();
-    const deployedNetwork = StackingCore.networks[networkId];
+    const token = await new web3.eth.Contract(ERC20.abi, "0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa");
+    const deployedNetwork = Token.networks[networkId];
     const deployedNetwork2 = Owner.networks[networkId];
 
     const instance = new web3.eth.Contract(
-      StackingCore.abi,
+      Token.abi,
       deployedNetwork && deployedNetwork.address
     );
     const instanceOwner = new web3.eth.Contract(
       Owner.abi,
       deployedNetwork2 && deployedNetwork2.address
     );
-    console.log(instanceOwner.methods);
-    await instanceOwner.methods
-      .approuve(
-        "0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa",
-        web3.utils.toWei(1000, "wei")
-      )
-      .send({ from: accounts[0] });
 
+    const actualBalance = await instanceOwner.methods.getBalance(token._address, accounts[0]).call(); 
+
+    setTokenName(await token.methods.name().call());
+    setBalanceOf(actualBalance);
+    setERC20(token);
     setInstance(instance);
     setWeb3(web3);
     setAccounts(accounts);
@@ -48,32 +51,17 @@ const App = () => {
     setInstanceOwner(instanceOwner);
   };
 
+  const UpdateToken = async (token) => {
+    const newToken = await new web3.eth.Contract(ERC20.abi, token);
+
+    setERC20(newToken);
+    console.log(ERC20Token);
+  } 
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
     setInputState({ ...inputState, [name]: value });
-
-    console.log(inputState);
-  };
-
-  const deposit = async () => {
-    await web3.eth.sendTransaction({
-      to: instance._address,
-      from: accounts[0],
-      value: web3.utils.toWei(inputState.valueDeposit, "ether"),
-    });
-    setBalanceOf(
-      await instance.methods
-        .balanceOf(accounts[0], "0xa36085F69e2889c224210F603D836748e7dC0088")
-        .call()
-    );
-  };
-
-  const withdraw = async () => {
-    await instance.methods
-      .withdrawMoney(web3.utils.toWei(inputState.valueWidthraw, "ether"))
-      .send({ from: accounts[0] });
-    setBalanceOf(await instance.methods.balanceOf(accounts[0]).call());
   };
 
   const handleChainLinkValue = async () => {
@@ -87,21 +75,46 @@ const App = () => {
       });
   };
 
-  const depositERC20 = async () => {
-    await instanceOwner.methods
-      .transfer("0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa", 1000)
-      .send({ from: accounts[0] });
+  const depositERC20 = async (amount) => {
+    await ERC20Token.methods
+    .approve(instanceOwner._address, amount)
+    .send({from:accounts[0]}).on("receipt", (hash) => {
+       instanceOwner.methods
+      .depositToken("0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa", 
+      amount)
+      .send({ from: accounts[0] }).then(() => {
+        updateBalance();
+      });
+    }); 
   };
+
+  const widthdrawERC20 = async (amount) => {
+    await ERC20Token.methods
+    .approve(accounts[0], amount)
+    .send({from:accounts[0]}).on("receipt", (hash) => {
+       instanceOwner.methods
+      .widthdrawToken("0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa", 
+      amount)
+      .send({ from: accounts[0] }).then(() => {
+        updateBalance();
+      });
+    }); 
+  };
+
+  const updateBalance = async() => {
+    const setBalance = await instanceOwner.methods.getBalance(ERC20Token._address, accounts[0]).call(); 
+    setBalanceOf(setBalance);
+  }
 
   return (
     <div className="homePage">
       <h1>Staking Project</h1>
       {/* <div>
         <h2>Total stacker sur le contract : {balancOfContract}</h2>
-      </div>
-      <div>
-        <h3>Nombre de tokens stakés : {balanceOf}</h3>
       </div> */}
+      <div>
+        <h3>Nombre de tokens stakés : {balanceOf} {TokenName}</h3>
+      </div>
 
       {/* <div>
         Valeur de <button onClick={handleChainLinkValue}>Clicl</button>
@@ -116,7 +129,7 @@ const App = () => {
       <div className="stakeContainer">
         <p>Stacker vos tokens</p>
         <input type="number" name="valueDeposit" onChange={handleInputChange} />
-        <button onClick={depositERC20}>Stacker</button>
+        {/* <button onClick={depositERC20}>Stacker</button> */}
       </div>
       <div>
         <p>Réclamer vos tokens</p>
@@ -125,10 +138,13 @@ const App = () => {
           name="valueWidthraw"
           onChange={handleInputChange}
         />
-        <button onClick={withdraw}>Retirer</button>
+        {/* <button onClick={withdraw}>Retirer</button> */}
       </div>
 
-      <button onClick={deposit}>Deposit</button>
+      <button onClick={() => depositERC20(100)}>Deposit</button>
+      <button onClick={() => widthdrawERC20(100)}>Withdraw</button>
+      <button onClick={() => UpdateToken("0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa")}>aprove</button>
+
     </div>
   );
 };
