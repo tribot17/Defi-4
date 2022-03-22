@@ -111,9 +111,9 @@ const App = () => {
     await ERC20Token.methods
       .approve(accounts[0], amount)
       .send({ from: accounts[0] })
-      .on("receipt", (hash) => {
+      .on("receipt", () => {
         instanceOwner.methods
-          .widthdrawToken(token, amount, tokenValue)
+          .widthdrawToken(token, web3.utils.toWei(amount, "ether"), tokenValue)
           .send({ from: accounts[0] })
           .then(() => {
             updateBalance(token);
