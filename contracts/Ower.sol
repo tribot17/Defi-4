@@ -8,7 +8,7 @@ import "@chainlink/contracts/src/v0.8/interfaces/FeedRegistryInterface.sol";
 
 contract Ower is ChainlinkClient {
     mapping(address => mapping(address => uint256)) private balance;
-    mapping(address => uint256) private depositTime;
+    mapping(address => mapping(address => uint256)) private depositTime;
     mapping(address => mapping(address => uint256)) public depositValue;
     mapping(address => uint256) private reward;
     mapping(address => address) public tokenPriceFeedMapping;
@@ -25,7 +25,7 @@ contract Ower is ChainlinkClient {
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         balance[msg.sender][_token] += _amount;
         depositValue[msg.sender][_token] += value * _amount;
-        depositTime[msg.sender] = block.timestamp;
+        depositTime[msg.sender][_token] = block.timestamp;
     }
 
     function widthdrawToken(
@@ -57,6 +57,21 @@ contract Ower is ChainlinkClient {
         uint256 decimals
     ) public view returns (uint256) {
         return balance[_user][_token] / 10**decimals;
+    }
+
+    function getPrice(address base, address quote)
+        public
+        view
+        returns (int256)
+    {
+        (
+            uint80 roundID,
+            int256 price,
+            uint256 startedAt,
+            uint256 timeStamp,
+            uint80 answeredInRound
+        ) = registry.latestRoundData(base, quote);
+        return price;
     }
 
     function addressBalance(address _token, address _user)

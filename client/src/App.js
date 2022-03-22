@@ -125,8 +125,8 @@ const App = () => {
     const USD = "0x0000000000000000000000000000000000000348";
     let value;
 
-    await feedRegistry.methods
-      .latestRoundData(token1, USD)
+    await instanceOwner.methods
+      .getPrice(token1, USD)
       .call()
       .then((roundData) => {
         value = Math.round(roundData.answer / 10 ** 8);
