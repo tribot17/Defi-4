@@ -87,7 +87,7 @@ const App = () => {
     let tokenValue = (await getTokenValue(token)).toString();
 
     var number = web3.utils.toBN(tokenValue);
-    console.log(tokenValue, number);
+
     await ERC20Token.methods
       .approve(instanceOwner._address, web3.utils.toWei(amount, "ether"))
       .send({ from: accounts[0] })

@@ -47,7 +47,8 @@ contract Ower is ChainlinkClient {
     }
 
     function getReward(address _token) public returns (uint256) {
-        return depositValue[msg.sender][_token];
+        return (depositValue[msg.sender][_token] *
+            (rate * ((depositTime[msg.sender] - block.timestamp) / 24)));
     }
 
     function getBalance(
