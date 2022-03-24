@@ -2,23 +2,28 @@ import React, { Component, useEffect, useState } from "react";
 import getWeb3 from "./getWeb3";
 // import StackingCore from "./contracts/stakingCore.json";
 import Token from "./contracts/Token.json";
-import Owner from "./contracts/Ower.json";
+import StackingCore from "./contracts/StackingCore.json";
 import ERC20 from "./contracts/ERC20.json";
 import feedRegistryInterfaceABI from "./FeedRegistryInterABI.json";
 
 const App = () => {
+  const initialState = {
+    balance: 0,
+  };
   const [web3, setWeb3] = useState();
   const [accounts, setAccounts] = useState();
   const [networkId, setNetworkId] = useState();
   const [contract, setContract] = useState();
-  const [balanceOf, setBalanceOf] = useState(0);
+  const [stacker, setStacker] = useState(initialState);
+  const [balance, setBalance] = useState();
   const [balancOfContract, setBalancOfContract] = useState(0);
   const [inputState, setInputState] = useState({});
-  const [instanceOwner, setInstanceOwner] = useState();
+  const [instance, setinstance] = useState();
   const [ERC20Token, setERC20] = useState();
   const [TokenName, setTokenName] = useState();
   const [feedRegistry, setFeedRegistery] = useState();
   const [decimals, setDecimals] = useState();
+  const USD = "0x0000000000000000000000000000000000000348";
 
   useEffect(() => {
     loadData();
@@ -32,42 +37,34 @@ const App = () => {
       ERC20.abi,
       "0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa"
     );
-    const deployedNetwork = Owner.networks[networkId];
+    const deployedNetwork = StackingCore.networks[networkId];
     const addr = "0xAa7F6f7f507457a1EE157fE97F6c7DB2BEec5cD0";
     const feedRegistry = new web3.eth.Contract(feedRegistryInterfaceABI, addr);
     const LINK = "0xa36085F69e2889c224210F603D836748e7dC0088";
 
-    const instanceOwner = new web3.eth.Contract(
-      Owner.abi,
+    const instance = new web3.eth.Contract(
+      StackingCore.abi,
       deployedNetwork && deployedNetwork.address
     );
 
-    const setBalance = await instanceOwner.methods
-      .addressBalance(token._address, accounts[0])
-      .call();
-
-    console.log(setBalance / 10 ** (await token.methods.decimals().call()));
+    // const setBalance = await instance.methods
+    //   .getBalance(token._address)
+    //   .call();
 
     setFeedRegistery(feedRegistry);
     setERC20(token);
+    setStacker(
+      await instance.methods.stacker(accounts[0], token._address).call()
+    );
     setTokenName(await token.methods.name().call());
     setDecimals(await token.methods.decimals().call());
-    setBalanceOf(setBalance / 10 ** (await token.methods.decimals().call()));
     setWeb3(web3);
     setAccounts(accounts);
     setNetworkId(networkId);
-    setInstanceOwner(instanceOwner);
-  };
-
-  const UpdateToken = async (token) => {
-    const newToken = await new web3.eth.Contract(ERC20.abi, token);
-    const { methods } = newToken;
-    console.log(await methods.name().call());
-
-    setERC20(newToken);
-    setTokenName(await methods.name().call());
-    setDecimals(await methods.decimals().call());
-    updateBalance(token);
+    setinstance(instance);
+    setBalance(
+      await instance.methods.getBalance(token._address, accounts[0]).call()
+    );
   };
 
   const handleInputChange = (e) => {
@@ -75,28 +72,27 @@ const App = () => {
     setInputState({ ...inputState, [name]: value });
   };
 
-  const getRealBalance = async () => {
-    console.log(
-      await instanceOwner.methods
-        .addressBalance(ERC20Token._address, accounts[0])
-        .call()
+  const UpdateToken = async (token) => {
+    const newToken = await new web3.eth.Contract(ERC20.abi, token);
+    const { methods } = newToken;
+    setStacker(
+      await instance.methods.stacker(accounts[0], newToken._address).call()
     );
+    setERC20(newToken);
+    setTokenName(await methods.name().call());
+    setDecimals(await methods.decimals().call());
   };
 
   const depositERC20 = async (amount, token) => {
-    let tokenValue = (await getTokenValue(token)).toString();
-
-    var number = web3.utils.toBN(tokenValue);
-
     await ERC20Token.methods
-      .approve(instanceOwner._address, web3.utils.toWei(amount, "ether"))
+      .approve(instance._address, web3.utils.toWei(amount, "ether"))
       .send({ from: accounts[0] })
       .then((hash) => {
-        instanceOwner.methods
+        instance.methods
           .depositToken(
             ERC20Token._address,
             web3.utils.toWei(amount, "ether"),
-            tokenValue
+            decimals
           )
           .send({ from: accounts[0] })
           .then(() => {
@@ -106,14 +102,12 @@ const App = () => {
   };
 
   const widthdrawERC20 = async (amount, token) => {
-    // "0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa"
-    let tokenValue = await getTokenValue(token);
     await ERC20Token.methods
       .approve(accounts[0], amount)
       .send({ from: accounts[0] })
       .on("receipt", () => {
-        instanceOwner.methods
-          .widthdrawToken(token, web3.utils.toWei(amount, "ether"), tokenValue)
+        instance.methods
+          .withdrawToken(token, web3.utils.toWei(amount, "ether"))
           .send({ from: accounts[0] })
           .then(() => {
             updateBalance(token);
@@ -121,36 +115,35 @@ const App = () => {
       });
   };
 
-  const getTokenValue = async (token1) => {
-    const USD = "0x0000000000000000000000000000000000000348";
-    let value;
-
-    await instanceOwner.methods
-      .getPrice(token1, USD)
-      .call()
-      .then((roundData) => {
-        value = Math.round(roundData.answer / 10 ** 8);
-      });
-    // let res = Math.round(value * 100) / 10;
-    return value;
+  const getBalance = async () => {
+    console.log(stacker);
   };
 
   const rewardValue = async () => {
-    let valuer = await instanceOwner.methods
-      .getReward(ERC20Token._address)
-      .call();
-    console.log(valuer);
+    await instance.methods
+      .getRewardValue(ERC20Token._address, accounts[0])
+      .call()
+      .then((res) => {
+        console.log(res);
+      });
   };
 
   const redeem = async () => {
-    await instanceOwner.methods.redeemReward(ERC20Token._address).call();
+    await instance.methods.redeemReward(ERC20Token._address).call();
+  };
+
+  const depositTime = async () => {
+    console.log(
+      await instance.methods
+        .depositTime(accounts[0], ERC20Token._address)
+        .call()
+    );
   };
 
   const updateBalance = async (token) => {
-    const setBalance = await instanceOwner.methods
-      .getBalance(token, accounts[0], decimals)
-      .call();
-    setBalanceOf(setBalance);
+    setBalance(
+      await instance.methods.getBalance(ERC20Token._address, accounts[0]).call()
+    );
   };
 
   return (
@@ -158,47 +151,54 @@ const App = () => {
       <h1>Staking Project</h1>
       <div>
         <h3>
-          Nombre de tokens stakés : {balanceOf} {TokenName}
+          Nombre de tokens stakés :{" "}
+          {balance != undefined ? balance / 10 ** decimals : 0} {TokenName}
         </h3>
       </div>
 
       <div>
         <div className="stakeContainer">
-          <p>Stacker vos tokens</p>
-          <input
-            type="number"
-            name="valueDeposit"
-            onChange={handleInputChange}
-          />
-          <button
-            onClick={() =>
-              depositERC20(inputState.valueDeposit, ERC20Token._address)
-            }
-          >
-            Deposit
-          </button>
+          <select>
+            <option>DAI</option>
+            <option>ChainLink</option>
+          </select>
+          <div className="deposit">
+            <p>Stacker vos tokens</p>
+            <input
+              type="number"
+              name="valueDeposit"
+              onChange={handleInputChange}
+            />
+            <button
+              onClick={() =>
+                depositERC20(inputState.valueDeposit, ERC20Token._address)
+              }
+            >
+              Deposit
+            </button>
+          </div>
+          <div>
+            <p style={{ marginTop: "10px" }}>Réclamer vos tokens</p>
+            <input
+              type="number"
+              name="valueWidthraw"
+              onChange={handleInputChange}
+            />
+            <button
+              onClick={() =>
+                widthdrawERC20(inputState.valueWidthraw, ERC20Token._address)
+              }
+            >
+              Withdraw
+            </button>
+          </div>
         </div>
-        <div>
-          <p>Réclamer vos tokens</p>
-          <input
-            type="number"
-            name="valueWidthraw"
-            onChange={handleInputChange}
-          />
-          <button
-            onClick={() =>
-              widthdrawERC20(inputState.valueWidthraw, ERC20Token._address)
-            }
-          >
-            Withdraw
-          </button>
-        </div>
-        <div>
-          <p>Réclamer la récompenses</p>
+        <div className="redeem">
+          <p>Montant de votre récompense : </p>
           <button onClick={redeem}>Réclamer</button>
         </div>
         <div>
-          <p>Changer de token</p>
+          <p>Token custom</p>
           <input
             type="number"
             name="valueDeposit"
@@ -212,16 +212,10 @@ const App = () => {
             Update
           </button>
         </div>
-        <button
-          onClick={() =>
-            getTokenValue("0xa36085F69e2889c224210F603D836748e7dC0088")
-          }
-        >
-          valeur
-        </button>
 
         <button onClick={() => rewardValue()}>reward</button>
-        <button onClick={() => getRealBalance()}>balance</button>
+        <button onClick={() => getBalance()}>balance</button>
+        <button onClick={() => depositTime()}>time</button>
       </div>
     </div>
   );

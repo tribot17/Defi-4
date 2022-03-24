@@ -6,8 +6,8 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/FeedRegistryInterface.sol";
 
-contract Ower is ChainlinkClient {
-    struct Staker {
+contract StackingCore is ChainlinkClient {
+    struct Stacker {
         uint256 balance;
         uint256 FirstDepositTime;
         uint256 reward;
@@ -15,11 +15,12 @@ contract Ower is ChainlinkClient {
     }
 
     mapping(address => address) public tokenPriceFeedMapping;
-    mapping(address => mapping(address => Staker)) public staker;
+    mapping(address => mapping(address => Stacker)) public stacker;
 
     FeedRegistryInterface internal registry;
     Rec rec;
-    uint256 public rate = 100;
+    uint256 public rate = 10;
+    address USD = 0x0000000000000000000000000000000000000348;
 
     constructor(address _registry) {
         registry = FeedRegistryInterface(_registry);
@@ -28,41 +29,34 @@ contract Ower is ChainlinkClient {
     function depositToken(
         address _token,
         uint256 _amount,
-        uint256 decimals
+        uint256 _decimals
     ) public {
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-        staker[msg.sender][_token].balance += _amount;
-        staker[msg.sender][_token].decimals = decimals;
-        staker[msg.sender][_token].reward = uint256(25);
-        staker[msg.sender][_token].FirstDepositTime = block.timestamp;
+        stacker[msg.sender][_token].balance += _amount;
+        stacker[msg.sender][_token].decimals = _decimals;
+        stacker[msg.sender][_token].FirstDepositTime = block.timestamp;
     }
 
-    function widthdrawToken(address _token, uint256 _amount) public {
-        require(
-            staker[msg.sender][_token].balance >= _amount,
-            "Not enought token"
-        );
-        IERC20(_token).transferFrom(address(this), msg.sender, _amount);
-        staker[msg.sender][_token].balance -= _amount;
+    function withdrawToken(address _token, uint256 _amount) public {
+        require(stacker[msg.sender][_token].balance >= _amount);
+        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        stacker[msg.sender][_token].balance -= _amount;
     }
 
-    function redeemReward(
-        address _token,
-        address USD,
-        uint256 decimals
-    ) public {
-        require(
-            block.timestamp >=
-                staker[msg.sender][_token].FirstDepositTime + 24 hours
-        );
-        // rec.faucet(
-        //     msg.sender,
-        //     rewardBalance(_token, msg.sender, USD, decimals)
-        // );
+    function getRewardValue(address _token, address _user)
+        public
+        view
+        returns (uint256)
+    {
+        return (getBalance(_token, _user) * uint256(getPrice(_token, USD)));
     }
 
-    function setRewardValue(address _token) public {
-        staker[msg.sender][_token].reward = uint256(25);
+    function getBalance(address _token, address _user)
+        public
+        view
+        returns (uint256)
+    {
+        return stacker[_user][_token].balance;
     }
 
     function getPrice(address base, address quote)

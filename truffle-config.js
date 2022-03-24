@@ -15,6 +15,8 @@ module.exports = {
         return new HDWalletProvider(process.env.MNEMONIC, process.env.CHAIN_ID);
       },
       network_id: 42,
+      networkCheckTimeoutnetworkCheckTimeout: 10000,
+      timeoutBlocks: 200,
     },
     ropsten: {
       provider: function () {
