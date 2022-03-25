@@ -19,6 +19,7 @@ const App = () => {
   const [TokenName ,setTokenName] = useState();
   const [feedRegistry, setFeedRegistery] = useState();
   const [decimals, setDecimals] = useState();
+  const [symbol, setSymbols] = useState();
 
   useEffect(() => {
     loadData();
@@ -99,7 +100,7 @@ const App = () => {
     console.log(ERC20Token);
     feedRegistry.methods.latestRoundData(token1, USD).call()
     .then((roundData) => {
-        console.log("Latest Round Data", (roundData.answer / 10 ** 8))
+        console.log("Latest Round Data", (roundData.answer / 10 ** decimals))
     });
   }
 
