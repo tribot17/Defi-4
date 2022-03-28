@@ -7,37 +7,77 @@ import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/FeedRegistryInterface.sol";
 
 contract Ower is ChainlinkClient {
-    mapping(address => mapping(address => uint256)) private balance;
-    mapping(address => uint256) private depositTime;
-    mapping(address => uint256) private reward;
+    struct Staker {
+        uint256 balance;
+        uint256 FirstDepositTime;
+        uint256 reward;
+        uint256 decimals;
+    }
+
     mapping(address => address) public tokenPriceFeedMapping;
+    mapping(address => mapping(address => Staker)) public staker;
 
     FeedRegistryInterface internal registry;
     Rec rec;
-    uint256 public rate;
+    uint256 public rate = 100;
 
-    function depositToken(address _token, uint256 _amount) public {
+    constructor(address _registry) {
+        registry = FeedRegistryInterface(_registry);
+    }
+
+    function depositToken(
+        address _token,
+        uint256 _amount,
+        uint256 decimals
+    ) public {
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-        balance[msg.sender][_token] += _amount;
-        depositTime[msg.sender] = block.timestamp;
+        staker[msg.sender][_token].balance += _amount;
+        staker[msg.sender][_token].decimals = decimals;
+        staker[msg.sender][_token].reward = uint256(25);
+        staker[msg.sender][_token].FirstDepositTime = block.timestamp;
     }
 
     function widthdrawToken(address _token, uint256 _amount) public {
-        require(balance[msg.sender][_token] >= _amount, "Not enought token");
+        require(
+            staker[msg.sender][_token].balance >= _amount,
+            "Not enought token"
+        );
         IERC20(_token).transferFrom(address(this), msg.sender, _amount);
-        balance[msg.sender][_token] -= _amount;
+        staker[msg.sender][_token].balance -= _amount;
     }
 
-    function redeemReward() public {
-        require(block.timestamp >= depositTime[msg.sender] + 24 hours);
-        // rec.faucet(msg.sender, reward);
+    function redeemReward(
+        address _token,
+        address USD,
+        uint256 decimals
+    ) public {
+        require(
+            block.timestamp >=
+                staker[msg.sender][_token].FirstDepositTime + 24 hours
+        );
+        // rec.faucet(
+        //     msg.sender,
+        //     rewardBalance(_token, msg.sender, USD, decimals)
+        // );
     }
 
-    function getBalance(address _token, address _user)
+    function setRewardValue(address _token) public {
+        staker[msg.sender][_token].reward = uint256(25);
+    }
+
+    function getPrice(address base, address quote)
         public
         view
-        returns (uint256)
+        returns (int256)
     {
-        return balance[_user][_token];
+        int8 decimals;
+        (
+            uint80 roundID,
+            int256 price,
+            uint256 startedAt,
+            uint256 timeStamp,
+            uint80 answeredInRound
+        ) = registry.latestRoundData(base, quote);
+        return price / 10**8;
     }
 }

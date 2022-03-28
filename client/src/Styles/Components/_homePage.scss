@@ -5,7 +5,40 @@ h1 {
 .homePage {
   display: flex;
   flex-direction: column;
+  text-align: center;
 
   .stakeContainer {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    align-content: stretch;
+    width: 50%;
+    height: 200px;
+    margin: auto;
+    background-color: rgb(66, 70, 110);
+    color: white;
+    border-radius: 50px;
+
+    p {
+      margin: 0;
+      margin-bottom: 10px;
+    }
+  }
+
+  .redeem {
+    background-color: rgb(35, 39, 78);
+    border-radius: 50px;
+    color: white;
+    width: 50%;
+    margin: auto;
+    margin-top: 25px;
+    padding: 10px;
+  }
+
+  p {
+    font-size: larger;
+    font-weight: 900;
   }
 }

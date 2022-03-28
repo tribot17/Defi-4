@@ -1,13 +1,12 @@
-
 var Rec = artifacts.require("./Rec.sol");
-// var StackingCore = artifacts.require("./StakingCore.sol");
-var Ower = artifacts.require("./Ower.sol");
-var Token = artifacts.require("./Token.sol");
+var StackingCore = artifacts.require("./StackingCore.sol");
 
 module.exports = async function (deployer, _network, accounts) {
   await deployer.deploy(Rec);
-  // await deployer.deploy(Token);
-  await deployer.deploy(Ower);
-  // const rec = await Rec.deployed();
-  // await deployer.deploy(StackingCore, rec.address);
+  const rec = await Rec.deployed();
+  await deployer.deploy(
+    StackingCore,
+    "0xAa7F6f7f507457a1EE157fE97F6c7DB2BEec5cD0"
+  );
+  await rec.faucet(StackingCore.address, 1000000000000);
 };
