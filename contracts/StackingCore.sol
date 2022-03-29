@@ -10,7 +10,9 @@ contract StackingCore is ChainlinkClient, Rec {
     struct Stacker {
         uint256 balance;
         uint256 DepositTime;
+        uint256 LastUpdateTime;
         uint256 decimals;
+        uint256 reward;
     }
 
     mapping(address => address) public tokenPriceFeedMapping;
@@ -32,10 +34,8 @@ contract StackingCore is ChainlinkClient, Rec {
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         stacker[msg.sender][_token].balance += _amount;
         stacker[msg.sender][_token].decimals = _decimals;
-        if (stacker[msg.sender][_token].DepositTime != 0) {
-            stacker[msg.sender][_token].DepositTime =
-                (block.timestamp - stacker[msg.sender][_token].DepositTime) +
-                block.timestamp;
+        if (stacker[msg.sender][_token].DepositTime != uint256(0)) {
+            updateReward(_token, msg.sender);
         } else {
             stacker[msg.sender][_token].DepositTime = block.timestamp;
         }
@@ -43,7 +43,7 @@ contract StackingCore is ChainlinkClient, Rec {
 
     function withdrawToken(address _token, uint256 _amount) public {
         require(stacker[msg.sender][_token].balance >= _amount);
-        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        IERC20(_token).transfer(msg.sender, _amount);
         stacker[msg.sender][_token].balance -= _amount;
     }
 
@@ -56,13 +56,6 @@ contract StackingCore is ChainlinkClient, Rec {
             ((getBalanceValue(_token, _user) / 100) * rate) *
             getTimeStamp(_token, _user);
     }
-
-    // function setRewardValue(address _token, address _user) public {
-    //     stacker[_user][_token].reward =
-    //         (((getBalanceValue(_token, _user) / 100) * rate) *
-    //             (getTimeStamp(_token, _user) / 24)) *
-    //         10**18;
-    // }
 
     function getBalanceValue(address _token, address _user)
         public
@@ -77,7 +70,25 @@ contract StackingCore is ChainlinkClient, Rec {
         view
         returns (uint256)
     {
-        return (block.timestamp - stacker[_user][_token].DepositTime) / 60;
+        return
+            (block.timestamp -
+                ((stacker[_user][_token].DepositTime -
+                    stacker[_user][_token].LastUpdateTime) + block.timestamp)) /
+            60;
+    }
+
+    function updateReward(address _token, address _user) internal {
+        stacker[msg.sender][_token].reward =
+            ((getBalanceValue(_token, _user) / 100) * rate) *
+            getTimeStamp(_token, _user);
+        stacker[_user][_token].LastUpdateTime = block.timestamp;
+    }
+
+    function reedemReward(address _token) public {
+        require(getRewardValue(_token, msg.sender) > 0, "Nothing to reedem");
+        updateReward(_token, msg.sender);
+        _mint(msg.sender, stacker[msg.sender][_token].reward);
+        stacker[msg.sender][_token].DepositTime = block.timestamp;
     }
 
     function getBalance(address _token, address _user)
@@ -86,12 +97,6 @@ contract StackingCore is ChainlinkClient, Rec {
         returns (uint256)
     {
         return stacker[_user][_token].balance;
-    }
-
-    function reedemReward(address _token) public {
-        require(getRewardValue(_token, msg.sender) > 0, "Nothing to reedem");
-        _mint(msg.sender, getRewardValue(_token, msg.sender));
-        stacker[msg.sender][_token].DepositTime = block.timestamp;
     }
 
     function getPrice(address base, address quote)

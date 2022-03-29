@@ -1,7 +1,6 @@
 import React, { Component, useEffect, useState } from "react";
 import getWeb3 from "./getWeb3";
-// import StackingCore from "./contracts/stakingCore.json";
-import Token from "./contracts/Token.json";
+import Rec from "./contracts/Rec.json";
 import StackingCore from "./contracts/StackingCore.json";
 import ERC20 from "./contracts/ERC20.json";
 import feedRegistryInterfaceABI from "./FeedRegistryInterABI.json";
@@ -9,6 +8,7 @@ import feedRegistryInterfaceABI from "./FeedRegistryInterABI.json";
 const App = () => {
   const initialState = {
     balance: 0,
+    _address: 0,
   };
   const [web3, setWeb3] = useState();
   const [accounts, setAccounts] = useState();
@@ -24,9 +24,9 @@ const App = () => {
   const [feedRegistry, setFeedRegistery] = useState();
   const [decimals, setDecimals] = useState();
   const [symbol, setSymbols] = useState();
+  const [RecToken, setRec] = useState(initialState);
   const [rewardValue, setRewardValue] = useState();
   const USD = "0x0000000000000000000000000000000000000348";
-
 
   useEffect(() => {
     loadData();
@@ -50,17 +50,23 @@ const App = () => {
       deployedNetwork && deployedNetwork.address
     );
 
+    const REC = new web3.eth.Contract(
+      Rec.abi,
+      deployedNetwork && deployedNetwork.address
+    );
+
     // const setBalance = await instance.methods
     //   .getBalance(token._address)
     //   .call();
 
     setFeedRegistery(feedRegistry);
     setERC20(token);
+    setTokenName(await token.methods.name().call());
+    setDecimals(await token.methods.decimals().call());
     setStacker(
       await instance.methods.stacker(accounts[0], token._address).call()
     );
-    setTokenName(await token.methods.name().call());
-    setDecimals(await token.methods.decimals().call());
+    setRec(REC);
     setWeb3(web3);
     setAccounts(accounts);
     setNetworkId(networkId);
@@ -68,9 +74,16 @@ const App = () => {
     setBalance(
       await instance.methods.getBalance(token._address, accounts[0]).call()
     );
-    setRewardValue(
-      await instance.methods.getRewardValue(token._address, accounts[0]).call() / 10**18 
-    )
+    try {
+      setRewardValue(
+        (await instance.methods
+          .getRewardValue(token._address, accounts[0])
+          .call()) /
+          10 ** 18
+      );
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -103,24 +116,16 @@ const App = () => {
           .send({ from: accounts[0] })
           .then(() => {
             updateBalance(token);
-            setRewardValue(
-              instance.methods.getRewardValue(ERC20Token._address, accounts[0]).call() / 10**18 
-            )
           });
       });
   };
 
   const widthdrawERC20 = async (amount, token) => {
-    await ERC20Token.methods
-      .approve(accounts[0], amount)
+    await instance.methods
+      .withdrawToken(token, web3.utils.toWei(amount, "ether"))
       .send({ from: accounts[0] })
-      .on("receipt", () => {
-        instance.methods
-          .withdrawToken(token, web3.utils.toWei(amount, "ether"))
-          .send({ from: accounts[0] })
-          .then(() => {
-            updateBalance(token);
-          });
+      .then(() => {
+        updateBalance(token);
       });
   };
 
@@ -128,11 +133,14 @@ const App = () => {
     console.log(stacker);
   };
 
-  const getTime = async ()=> {
-    await instance.methods.getTimeStamp(ERC20Token._address, accounts[0]).call().then((res) => {
-      console.log(res);
-    })
-  }
+  const getTime = async () => {
+    await instance.methods
+      .getDepositTime(ERC20Token._address, accounts[0])
+      .call()
+      .then((res) => {
+        console.log(res);
+      });
+  };
 
   const getRewardValue = async () => {
     await instance.methods
@@ -144,36 +152,53 @@ const App = () => {
   };
 
   const redeem = async () => {
-    await instance.methods.redeemReward(ERC20Token._address).call();
+    await instance.methods
+      .reedemReward(ERC20Token._address)
+      .send({ from: accounts[0] })
+      .then(() => {
+        updateBalance();
+      });
   };
 
   const updateBalance = async (token) => {
     setBalance(
       await instance.methods.getBalance(ERC20Token._address, accounts[0]).call()
     );
+    setRewardValue(
+      (await instance.methods
+        .getRewardValue(ERC20Token._address, accounts[0])
+        .call()) /
+        10 ** 18
+    );
   };
 
   const getBalanceValue = async () => {
-      await instance.methods.reedemReward(ERC20Token._address).send({from:accounts[0]}).then((res)=> {
+    await instance.methods
+      .reedemReward(ERC20Token._address)
+      .send({ from: accounts[0] })
+      .then((res) => {
         console.log(res);
-      })
-  }
+      });
+  };
 
   return (
     <div className="homePage">
-      <h1>Staking Project</h1>
-      <div>
-        <h3>
-          Nombre de tokens stakés :{" "}
-          {balance != undefined ? balance / 10 ** decimals : 0} {TokenName}
-        </h3>
+      <div className="headerBar">
+        <h1>Staking Project</h1>
+        <div>
+          <h3>
+            Nombre de tokens stakés :{" "}
+            {balance != undefined ? balance / 10 ** decimals : 0} {TokenName}
+          </h3>
+          <h4>Adresse du token de récompense : {RecToken._address}</h4>
+        </div>
       </div>
 
       <div>
         <div className="stakeContainer">
           <select>
-            <option>DAI</option>
             <option>ChainLink</option>
+            <option>DAI</option>
           </select>
           <div className="deposit">
             <p>Stacker vos tokens</p>
@@ -212,24 +237,16 @@ const App = () => {
         </div>
         <div>
           <p>Token custom</p>
-          <input
-            type="number"
-            name="valueDeposit"
-            onChange={handleInputChange}
-          />
-          <button
-            onClick={() =>
-              UpdateToken("0xa36085F69e2889c224210F603D836748e7dC0088")
-            }
-          >
+          <input type="number" name="valueToken" onChange={handleInputChange} />
+          <button onClick={() => UpdateToken(inputState.valueToken)}>
             Update
           </button>
         </div>
 
-        <button onClick={() => getRewardValue()}>reward</button>
+        {/* <button onClick={() => getRewardValue()}>reward</button>
         <button onClick={() => getBalance()}>balance</button>
         <button onClick={() => getBalanceValue()}>Valuer</button>
-        <button onClick={() => getTime()}>Time</button>
+        <button onClick={() => getTime()}>Time</button> */}
       </div>
     </div>
   );
