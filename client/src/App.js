@@ -129,13 +129,9 @@ const App = () => {
       });
   };
 
-  const getBalance = async () => {
-    console.log(stacker);
-  };
-
   const getTime = async () => {
     await instance.methods
-      .getDepositTime(ERC20Token._address, accounts[0])
+      .getTimeStamp(ERC20Token._address, accounts[0])
       .call()
       .then((res) => {
         console.log(res);
@@ -243,10 +239,9 @@ const App = () => {
           </button>
         </div>
 
-        {/* <button onClick={() => getRewardValue()}>reward</button>
-        <button onClick={() => getBalance()}>balance</button>
+        <button onClick={() => getRewardValue()}>reward</button>
         <button onClick={() => getBalanceValue()}>Valuer</button>
-        <button onClick={() => getTime()}>Time</button> */}
+        <button onClick={() => getTime()}>Time</button>
       </div>
     </div>
   );

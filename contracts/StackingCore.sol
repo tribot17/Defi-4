@@ -71,17 +71,17 @@ contract StackingCore is ChainlinkClient, Rec {
         returns (uint256)
     {
         return
-            (block.timestamp -
-                ((stacker[_user][_token].DepositTime -
-                    stacker[_user][_token].LastUpdateTime) + block.timestamp)) /
-            60;
+            ((block.timestamp -
+                (stacker[_user][_token].DepositTime -
+                    stacker[_user][_token].LastUpdateTime) +
+                block.timestamp) / 3600) * 24;
     }
 
     function updateReward(address _token, address _user) internal {
+        stacker[_user][_token].LastUpdateTime = block.timestamp;
         stacker[msg.sender][_token].reward =
             ((getBalanceValue(_token, _user) / 100) * rate) *
             getTimeStamp(_token, _user);
-        stacker[_user][_token].LastUpdateTime = block.timestamp;
     }
 
     function reedemReward(address _token) public {
